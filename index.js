@@ -12,12 +12,12 @@ const fs = require("fs");
 // const excelFile = "nomSmall.xlsx";
 
 // data set for 265 obj
-// const dataJson = "dataMedium.json";
-// const excelFile = "nomMedium.xlsx";
+const dataJson = "dataMedium.json";
+const excelFile = "nomMedium.xlsx";
 
 // data set for 32240 obj
-const dataJson = "data.json";
-const excelFile = "nomenclator.xlsx";
+// const dataJson = "data.json";
+// const excelFile = "nomenclator.xlsx";
 
 app.get("/", (req, res) => {
   res.send("Hello World!");
@@ -37,9 +37,9 @@ app.get("/getData", (req, res) => {
         // JSON columns
         "CIM Code": el["A"],
         "Trade name": el["B"],
-        "DCI": el["C"],
+        DCI: el["C"],
         "Dosage Form": el["D"],
-        "Concentration": el["E"],
+        Concentration: el["E"],
         "ATC Code": el["H"],
         "Prescription Type": el["J"],
         "Package volume": el["M"],
@@ -49,21 +49,30 @@ app.get("/getData", (req, res) => {
   );
 });
 
+function logObjCheckStatus(status, number) {
+  if (status) {
+    console.log(`No.${number} retrieved successfully.`);
+  } else {
+    // error message
+    console.log(`No.${number} could not be found in the NIH database or it doesn't have an ATC code.`);
+  }
+}
+
 const dictAtcCode = {};
 
 // localhost:3000/getFinalData
 app.get("/getFinalData", async (req, res) => {
-
   // call // localhost:3000/getData to retrieve the data
-  axios.get("http://localhost:3000/getData")
+  axios
+    .get("http://localhost:3000/getData")
     .then(async (response) => {
       try {
-        // start timer 
+        // start timer
         const start = Date.now();
 
         // init empty arra of objects
         const newData = [];
-        
+
         // init empty array of atcCodes that don't need to be checked again
         const atcCodesWithoutRxCuiOrInvalid = [];
 
@@ -72,14 +81,10 @@ app.get("/getFinalData", async (req, res) => {
 
         // go through the entire dataset
         for (const obj of response.data) {
-
-          // error message
-          const errorMsgNoRxCuiOrEmpty = `No.${number} could not be found in the NIH database or it doesn't have an ATC code.`;
-
           // extract the `ATC Code` column data from the JSON object
           const atcCode = obj["ATC Code"];
 
-          // check if the object has an `ATC Code` or if the `ATC Code` has already been established as 
+          // check if the object has an `ATC Code` or if the `ATC Code` has already been established as
           // invalid code or a code that doesn't have a RxCui in the NIH database
           if (atcCode === undefined || atcCode in atcCodesWithoutRxCuiOrInvalid) {
             // if the atcCode is not already in the array but it's undefined, it gets added
@@ -87,9 +92,8 @@ app.get("/getFinalData", async (req, res) => {
               atcCodesWithoutRxCuiOrInvalid.push(atcCode);
             }
 
-            // log error msg
-            console.log(errorMsgNoRxCuiOrEmpty);
-            
+            // log err msg and increment
+            logObjCheckStatus(false, number);
             number++;
             continue;
           }
@@ -99,16 +103,14 @@ app.get("/getFinalData", async (req, res) => {
           // check if the RxCui was already requested for this ATC Code
           if (Object.keys(dictAtcCode) != undefined && Object.keys(dictAtcCode).includes(atcCode)) {
             rxCui = dictAtcCode[atcCode];
-            
           } else {
-         
             // get RxCui based on the atc code
             rxCui = await getRxCuiByAtcCode(atcCode.toString());
-
             // if RxCui received is null => the code is not in the NIH database
             if (rxCui === null) {
               atcCodesWithoutRxCuiOrInvalid.push(atcCode);
-              console.log(errorMsgNoRxCuiOrEmpty);
+              // log err msg and increment
+              logObjCheckStatus(false, number);
               number++;
               continue;
             }
@@ -123,10 +125,8 @@ app.get("/getFinalData", async (req, res) => {
             RxCui: rxCui,
           };
 
-          // log sucess
-          console.log(`No.${number} retrieved successfully.`);
-
-          // increase log number
+          // log sucess and increment
+          logObjCheckStatus(true, number);
           number++;
 
           // push the new created object into the array
@@ -142,20 +142,7 @@ app.get("/getFinalData", async (req, res) => {
         // end timer
         const end = Date.now();
 
-        // calculate the execution time in ms
-        const executionTimeMs = end - start;
-
-        // convert it to hours passed
-        const hours = Math.floor(executionTimeMs / (1000 * 60 * 60));
-
-        // convert it to minutes passed
-        const minutes = Math.floor((executionTimeMs % (1000 * 60 * 60)) / (1000 * 60));
-
-        // convert it to seconds passed
-        const seconds = Math.floor((executionTimeMs % (1000 * 60)) / 1000);
-
-        // log the execution time in hours, minute and seconds
-        console.log(`Execution time: ${hours}h ${minutes}m ${seconds}s`);
+        getExecutionTime(start, end);
 
       } catch (error) {
         console.error(error);
@@ -168,7 +155,7 @@ app.get("/getFinalData", async (req, res) => {
 });
 
 async function getRxCuiByAtcCode(codATC) {
-  // return promise with 50 ms delay before the request is made 
+  // return promise with 50 ms delay before the request is made
   return await new Promise((resolve) =>
     setTimeout(async () => {
       resolve(await getRxCuiFromAPI(codATC));
@@ -193,7 +180,7 @@ async function getRxnormId(res) {
     return result.rxnormdata.idGroup[0].rxnormId[0];
 
   } catch (error) {
-    console.error("Error: COULD NOT BE FOUND IN THE DATABASE");
+    console.error("Error: MEDICINE COULD NOT BE FOUND IN THE NIH DATABASE");
     return null;
   }
 }
@@ -201,6 +188,25 @@ async function getRxnormId(res) {
 // write data to json file function
 function writeData(data) {
   fs.writeFileSync(dataJson, JSON.stringify(data), "utf-8");
+}
+
+function getExecutionTime(start, end) {
+  // calculate the execution time in ms
+  const executionTimeMs = end - start;
+
+  // convert it to hours passed
+  const hours = Math.floor(executionTimeMs / (1000 * 60 * 60));
+
+  // convert it to minutes passed
+  const minutes = Math.floor(
+    (executionTimeMs % (1000 * 60 * 60)) / (1000 * 60)
+  );
+
+  // convert it to seconds passed
+  const seconds = Math.floor((executionTimeMs % (1000 * 60)) / 1000);
+
+  // log the execution time in hours, minute and seconds
+  console.log(`Execution time: ${hours}h ${minutes}m ${seconds}s`);
 }
 
 app.listen(port, () => {
