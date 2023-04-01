@@ -6,18 +6,23 @@ const excelToJson = require("convert-excel-to-json");
 const axios = require("axios");
 const xml2js = require("xml2js");
 const fs = require("fs");
+const crypto = require('crypto');
 
-// data set for 10 obj
-// const dataJson = "dataSmall.json";
-// const excelFile = "nomSmall.xlsx";
+////////////////////////////////// VARIABLES
 
-// data set for 265 obj
-const dataJson = "dataMedium.json";
-const excelFile = "nomMedium.xlsx";
+// small data set for 10 obj
+const dataJson = "dataSmall.json";
+const excelFile = "nomSmall.xlsx";
 
-// data set for 32240 obj
+// medium data set for 265 obj
+// const dataJson = "dataMedium.json";
+// const excelFile = "nomMedium.xlsx";
+
+// full data set for 32240 obj
 // const dataJson = "data.json";
 // const excelFile = "nomenclator.xlsx";
+
+////////////////////////////////// API
 
 app.get("/", (req, res) => {
   res.send("Hello World!");
@@ -49,19 +54,9 @@ app.get("/getData", (req, res) => {
   );
 });
 
-function logObjCheckStatus(status, number) {
-  if (status) {
-    console.log(`No.${number} retrieved successfully.`);
-  } else {
-    // error message
-    console.log(`No.${number} could not be found in the NIH database or it doesn't have an ATC code.`);
-  }
-}
-
-const dictAtcCode = {};
-
 // localhost:3000/getFinalData
 app.get("/getFinalData", async (req, res) => {
+  const dictAtcCode = {};
   // call // localhost:3000/getData to retrieve the data
   axios
     .get("http://localhost:3000/getData")
@@ -154,6 +149,14 @@ app.get("/getFinalData", async (req, res) => {
     });
 });
 
+// localhost:3000/dataset
+app.get('/getDataset', (req, res) => {
+  const sha = calculateHash(fs.readFileSync(dataJson));
+  res.json({file: fs.readFileSync(dataJson, 'utf8'),sha});
+});
+
+////////////////////////////////// RXCUI FUNCTIONS
+
 async function getRxCuiByAtcCode(codATC) {
   // return promise with 50 ms delay before the request is made
   return await new Promise((resolve) =>
@@ -185,6 +188,17 @@ async function getRxnormId(res) {
   }
 }
 
+////////////////////////////////// UTIL FUNCTIONS
+
+function logObjCheckStatus(status, number) {
+  if (status) {
+    console.log(`No.${number} retrieved successfully.`);
+  } else {
+    // error message
+    console.log(`No.${number} could not be found in the NIH database or it doesn't have an ATC code.`);
+  }
+}
+
 // write data to json file function
 function writeData(data) {
   fs.writeFileSync(dataJson, JSON.stringify(data), "utf-8");
@@ -207,6 +221,10 @@ function getExecutionTime(start, end) {
 
   // log the execution time in hours, minute and seconds
   console.log(`Execution time: ${hours}h ${minutes}m ${seconds}s`);
+}
+
+function calculateHash(data) {
+  return crypto.createHash('sha256').update(JSON.stringify(data)).digest('hex');
 }
 
 app.listen(port, () => {
