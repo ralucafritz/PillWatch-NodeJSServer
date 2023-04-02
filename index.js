@@ -7,6 +7,7 @@ const axios = require("axios");
 const xml2js = require("xml2js");
 const fs = require("fs");
 const crypto = require('crypto');
+const cron = require('node-cron');
 
 ////////////////////////////////// VARIABLES
 
@@ -55,7 +56,7 @@ app.get("/getData", (req, res) => {
 });
 
 // localhost:3000/getFinalData
-app.get("/getFinalData", async (req, res) => {
+app.get("/getDatasetJson", async (req, res) => {
   const dictAtcCode = {};
   // call // localhost:3000/getData to retrieve the data
   axios
@@ -229,4 +230,16 @@ function calculateHash(data) {
 
 app.listen(port, () => {
   console.log(`Example app listening on port ${port}`);
+});
+
+////////////////////////////////// RECURRENT ACTIONS
+
+// minute 00 
+// hour 05 
+// month day *
+// month *
+// week day 1 - monday
+cron.schedule('00 05 * * 1', () => {
+  axios
+    .get("http://localhost:3000/getDatasetJson")
 });
