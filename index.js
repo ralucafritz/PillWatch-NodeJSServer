@@ -12,16 +12,7 @@ const util = require("./json/util.json");
 const app = express();
 const port = 3000;
 
-// inserting SSL certifications
-const options = {
-  key: fs.readFileSync("./cert/key.pem"),
-  cert: fs.readFileSync("./cert/cert.pem"),
-};
-
-// SSL server creation with the specified certifications
-const sslServer = https.createServer(options, app);
-
-sslServer.listen(port, () => {
+app.listen(port, () => {
   // when the server boots up => check if the data is outdated
   // if outdated => replaced
   // commented out for easier testing
@@ -30,11 +21,6 @@ sslServer.listen(port, () => {
 });
 
 ////////////////////////////////// VARIABLES
-
-// Created an agent in order for axios to be able to access the localhost APIs
-const agent = new https.Agent({
-  rejectUnauthorized: false,
-});
 
 // Local variables for the excel download location and the page where
 // information about the last update date is shown
@@ -96,7 +82,7 @@ app.get("/getDatasetJson", async (req, res) => {
 // localhost:3000/getDataset
 app.get("/getDataset", (req, res) => {
   const sha = calculateHash(fs.readFileSync(dataJson));
-  res.json({ file: fs.readFileSync(dataJson, "utf8"), sha });
+  res.json({ file: JSON.parse(fs.readFileSync(dataJson, "utf8")), sha });
 });
 
 // localhost:3000/getLastUpdateDate
