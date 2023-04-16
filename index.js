@@ -1,3 +1,5 @@
+////////////////////////////////// IMPORTS
+
 const express = require("express");
 const excelToJson = require("convert-excel-to-json");
 const axios = require("axios");
@@ -9,10 +11,12 @@ const HTMLParser = require("node-html-parser");
 const https = require("https");
 const util = require("./json/util.json");
 
-const app = express();
+const server = express();
 const port = 3000;
 
-app.listen(port, () => {
+// export const api = functions.https.onRequest(server);
+
+server.listen(port, () => {
   // when the server boots up => check if the data is outdated
   // if outdated => replaced
   // commented out for easier testing
@@ -44,18 +48,18 @@ const excelFile = "./downloads/nomSmall.xlsx";
 
 ////////////////////////////////// API
 
-app.get("/", (req, res) => {
+server.get("/", (req, res) => {
   res.send("Hello World!");
 });
 
 // localhost:3000/getConvertedData
-app.get("/getConvertedData", (req, res) => {
+server.get("/getConvertedData", (req, res) => {
   // read the Excel file and convert it to JSON objects
   res.send(convertToJson());
 });
 
 // localhost:3000/getFinalData
-app.get("/getDatasetJson", async (req, res) => {
+server.get("/getDatasetJson", async (req, res) => {
   try {
     // start timer
     const start = Date.now();
@@ -80,13 +84,13 @@ app.get("/getDatasetJson", async (req, res) => {
 });
 
 // localhost:3000/getDataset
-app.get("/getDataset", (req, res) => {
+server.get("/getDataset", (req, res) => {
   const sha = calculateHash(fs.readFileSync(dataJson));
   res.json({ file: JSON.parse(fs.readFileSync(dataJson, "utf8")), sha });
 });
 
 // localhost:3000/getLastUpdateDate
-app.get("/getLastUpdateDate", async (req, res) => {
+server.get("/getLastUpdateDate", async (req, res) => {
   try {
     // get last update date from the ANM site
     const lastUpdateDate = await getLastUpdateDate();
@@ -98,12 +102,11 @@ app.get("/getLastUpdateDate", async (req, res) => {
 });
 
 // api for testing purposes
-app.get("/test", async (req,res) => {
-    res.send(await checkDate());
+server.get("/test", async (req, res) => {
+  res.send(await checkDate());
 });
 
 ////////////////////////////////// RXCUI FUNCTIONS
-
 
 async function addRxCuiAndSortMeds(data) {
   const dictAtcCode = {};
@@ -208,6 +211,61 @@ async function getRxnormId(res) {
   }
 }
 
+////////////////////////////////// API MEDS INTERACTION
+
+server.get("/getInteractionList", async (req, res) => {
+  // get the query params from the Retrofit API call
+  const { stringParam, listParam } = req.query;
+
+  try {
+    // make request
+    const response = await getInteractions(stringParam, listParam);
+    const interactions = response.fullInteractionTypeGroup;
+    let listInteractions = [];
+    interactions.forEach(interaction => {
+      listInteractions.push(getFilteredInteractions(interaction.fullInteractionType))
+    }); 
+
+    res.json({interactionList: listInteractions});
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+});
+
+async function getInteractionsResultFromAPI(rxCui, listRxCuis) {
+  const apiURL = `https://rxnav.nlm.nih.gov/REST/interaction/list.json?rxcuis=`;
+  const rxcuis = [rxCui, ...listRxCuis.split(",")].join("+");
+  const sources = `&sources=ONCHigh`;
+  const res = await axios.get(apiURL + rxcuis + sources);
+  return res.data;
+}
+
+async function getInteractions(rxCui, listRxCuis) {
+  // return promise with 50 ms delay before the request is made
+  return await new Promise((resolve) =>
+    setTimeout(async () => {
+      resolve(await getInteractionsResultFromAPI(rxCui, listRxCuis));
+    }, 50)
+  );
+}
+
+function getFilteredInteractions(interactions) {
+  const filteredInteractions = interactions.filter(interaction => {
+    return interaction.interactionPair.some(pair => {
+      return pair.severity !== 'N/A';
+    });
+  });
+  const filteredResults = []
+  filteredInteractions.map(interaction => {
+    const rxcui1 =  interaction.minConcept[0].rxcui;
+    const rxcui2 = interaction.minConcept[1].rxcui;
+    const severity = interaction.interactionPair[0].severity;
+    filteredResults.push([rxcui1, rxcui2, severity]);
+    });
+  return filteredResults;
+}
+
 ////////////////////////////////// Excel related functions
 
 function convertToJson() {
@@ -239,7 +297,7 @@ async function getExcelFile() {
   await axios({ method: "get", url: DL_URL, responseType: "stream" })
     .then((response) => {
       const fileStream = fs.createWriteStream(excelFile);
-      // writes the data in chunks 
+      // writes the data in chunks
       response.data.pipe(fileStream);
       // on finish, send a log
       fileStream.on("finish", () => {
@@ -316,11 +374,11 @@ async function checkDate() {
 }
 
 // function that checks if the current file is outdated
-// if the data is outdated => download a new one and update 
+// if the data is outdated => download a new one and update
 async function getNewDataIfOutdated() {
   if (await checkDate()) {
     await getExcelFile();
-    await addRxCuiAndSortMeds(convertToJson())
+    await addRxCuiAndSortMeds(convertToJson());
   }
 }
 
@@ -335,7 +393,6 @@ async function getNewDataIfOutdated() {
 cron.schedule("00 05 * * 1", () => {
   getNewDataIfOutdated();
 });
-
 
 ////////////////////////////////// UTIL FUNCTIONS
 
