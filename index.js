@@ -226,7 +226,7 @@ server.get("/getInteractionList", async (req, res) => {
       listInteractions.push(getFilteredInteractions(interaction.fullInteractionType))
     }); 
 
-    res.json({interactionList: listInteractions});
+    res.json({interaction: listInteractions});
   } catch (err) {
     console.log(err);
     res.status(500).json({ message: "Internal Server Error" });
@@ -235,7 +235,7 @@ server.get("/getInteractionList", async (req, res) => {
 
 async function getInteractionsResultFromAPI(rxCui, listRxCuis) {
   const apiURL = `https://rxnav.nlm.nih.gov/REST/interaction/list.json?rxcuis=`;
-  const rxcuis = [rxCui, ...listRxCuis.split(",")].join("+");
+  const rxcuis = [rxCui, ...listRxCuis.toString().split(",")].join("+");
   const sources = `&sources=ONCHigh`;
   const res = await axios.get(apiURL + rxcuis + sources);
   return res.data;
@@ -261,7 +261,8 @@ function getFilteredInteractions(interactions) {
     const rxcui1 =  interaction.minConcept[0].rxcui;
     const rxcui2 = interaction.minConcept[1].rxcui;
     const severity = interaction.interactionPair[0].severity;
-    filteredResults.push([rxcui1, rxcui2, severity]);
+    const newInteraction = {rxCui1: rxcui1, rxCui2: rxcui2, severity: severity}
+    filteredResults.push(newInteraction);
     });
   return filteredResults;
 }
@@ -277,14 +278,11 @@ function convertToJson() {
   })["Worksheet"].map((el) => {
     return {
       // JSON columns
-      "CIM Code": el["A"],
       "Trade name": el["B"],
       DCI: el["C"],
       "Dosage Form": el["D"],
       Concentration: el["E"],
       "ATC Code": el["H"],
-      "Prescription Type": el["J"],
-      "Package volume": el["M"],
       "Last Update Date": el["T"],
     };
   });
@@ -431,3 +429,10 @@ function getExecutionTime(start, end) {
 function calculateHash(data) {
   return crypto.createHash("sha256").update(JSON.stringify(data)).digest("hex");
 }
+
+
+const interaction = {
+  rxCui1: "", 
+  rxCui2: "",
+  severity: ""
+};
