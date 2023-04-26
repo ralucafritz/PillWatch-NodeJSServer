@@ -35,16 +35,16 @@ const DL_URL = "https://nomenclator.anm.ro/files/nomenclator.xlsx";
 let lastUpdateDate = new Date(util.lastUpdateDate);
 
 // small data set for 10 obj
-const dataJson = "./json/dataSmall.json";
-const excelFile = "./downloads/nomSmall.xlsx";
+// const dataJson = "./json/dataSmall.json";
+// const excelFile = "./downloads/nomSmall.xlsx";
 
 // medium data set for 265 obj
-// const dataJson = "/json/dataMedium.json";
-// const excelFile = "/downloads/nomMedium.xlsx";
+// const dataJson = "./json/dataMedium.json";
+// const excelFile = "./downloads/nomMedium.xlsx";
 
 // full data set for 32240 obj
-// const dataJson = "/json/data.json";
-// const excelFile = "/downloads/nomenclator.xlsx";
+const dataJson = "./json/data.json";
+const excelFile = "./downloads/nomenclator.xlsx";
 
 ////////////////////////////////// API
 
@@ -89,6 +89,12 @@ server.get("/getDataset", (req, res) => {
   res.json({ file: JSON.parse(fs.readFileSync(dataJson, "utf8")), sha });
 });
 
+server.get("/getDatasetSha", (req, res) => {
+  console.log(Object.keys( JSON.parse(fs.readFileSync(dataJson, "utf8"))).length)
+  const sha = calculateHash(fs.readFileSync(dataJson));
+  res.json({ sha });
+})
+
 // localhost:3000/getLastUpdateDate
 server.get("/getLastUpdateDate", async (req, res) => {
   try {
@@ -102,8 +108,8 @@ server.get("/getLastUpdateDate", async (req, res) => {
 });
 
 // api for testing purposes
-server.get("/test", async (req, res) => {
-  res.send(await checkDate());
+server.get("/getTest", async (req, res) => {
+  console.log(Object.keys( JSON.parse(fs.readFileSync(dataJson, "utf8"))).length)
 });
 
 ////////////////////////////////// RXCUI FUNCTIONS
@@ -115,14 +121,30 @@ async function addRxCuiAndSortMeds(data) {
   // init empty array of atcCodes that don't need to be checked again
   const atcCodesWithoutRxCuiOrInvalid = [];
 
+  // create map which will verify if a med with the name, dosage and concentration was checked previously
+  const map = new Map();
+
   // init numbers for checking purposes
   let number = 2;
 
   // go through the entire dataset
   for (const obj of data) {
+      obj['Trade name'] = extractMedicationName(obj['Trade name'])
+
+     // create the map key for the object made out of trade name, dosage form and concentration
+     const key = `${obj["Trade name"]},${obj["Concentration"]}`
+
+     // check if the object is already in the map => skip object
+     if(map.has(key)) {
+       // log err msg and increment
+       logObjCheckStatus(-1, number);
+         number++;
+         continue
+     }
+
     // extract the `ATC Code` column data from the JSON object
     const atcCode = obj["ATC Code"];
-
+    
     // check if the object has an `ATC Code` or if the `ATC Code` has already been established as
     // invalid code or a code that doesn't have a RxCui in the NIH database
     if (atcCode === undefined || atcCode in atcCodesWithoutRxCuiOrInvalid) {
@@ -132,11 +154,11 @@ async function addRxCuiAndSortMeds(data) {
       }
 
       // log err msg and increment
-      logObjCheckStatus(false, number);
+      logObjCheckStatus(1, number);
       number++;
       continue;
     }
-
+    
     let rxCui;
 
     // check if the RxCui was already requested for this ATC Code
@@ -152,7 +174,7 @@ async function addRxCuiAndSortMeds(data) {
       if (rxCui === null) {
         atcCodesWithoutRxCuiOrInvalid.push(atcCode);
         // log err msg and increment
-        logObjCheckStatus(false, number);
+        logObjCheckStatus(1, number);
         number++;
         continue;
       }
@@ -168,8 +190,11 @@ async function addRxCuiAndSortMeds(data) {
     };
 
     // log sucess and increment
-    logObjCheckStatus(true, number);
+    logObjCheckStatus(0, number);
     number++;
+
+    // push to the map 
+    map.set(key, newObj)
 
     // push the new created object into the array
     newData.push(newObj);
@@ -209,6 +234,38 @@ async function getRxnormId(res) {
     console.error("Error: MEDICINE COULD NOT BE FOUND IN THE NIH DATABASE");
     return null;
   }
+}
+
+function extractMedicationName(name) {
+  // split the input string by space characters
+  const words = name.split(" ");
+
+  // filter words that contain "mg", "ml", "-", "mg/", "g/", "micrograme/", "MU/", or "mg/ml"
+  // filter words that contain digits / floating numbers
+  const filteredWords = words.filter((word) => {
+    const lowerCaseWord = word.toLowerCase();
+    return  !(/^[-+]?\d+(?:[,.]\d+)?$/.test(word)
+        || lowerCaseWord === "mg" 
+        || lowerCaseWord === "ml" 
+        || lowerCaseWord === "-" 
+        || lowerCaseWord.includes("mg/") 
+        || lowerCaseWord.includes("g/") 
+        || lowerCaseWord.includes("micrograme/") 
+        || lowerCaseWord.includes("MU/") 
+        || lowerCaseWord.includes("mg/ml"));
+  });
+
+  const medicationName = filteredWords.map(word => toTitleCase(word)).join(" ");
+  return medicationName.trim() || name
+}
+
+function toTitleCase(str) {
+  return str.replace(
+    /\w\S*/g,
+    function(txt) {
+      return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();
+    }
+  );
 }
 
 ////////////////////////////////// API MEDS INTERACTION
@@ -396,14 +453,25 @@ cron.schedule("00 05 * * 1", () => {
 
 // logging function
 function logObjCheckStatus(status, number) {
-  if (status) {
-    console.log(`No.${number} retrieved successfully.`);
-  } else {
-    // error message
+  switch (status) {
+    case 0:
+      console.log(`No.${number} retrieved successfully.`);
+      break;
+    case 1:
+       // error message
     console.log(
       `No.${number} could not be found in the NIH database or it doesn't have an ATC code.`
     );
-  }
+      break;
+    case -1:
+       // error message
+    console.log(
+      `No.${number} already in the system.`
+    );
+      break;
+    default:
+      console.log(`Unknown status for No.${number}`);
+  } 
 }
 
 // execution timer
