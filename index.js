@@ -248,10 +248,13 @@ function extractMedicationName(name) {
         || lowerCaseWord === "mg" 
         || lowerCaseWord === "ml" 
         || lowerCaseWord === "-" 
+        || lowerCaseWord.includes("ui") 
+        || lowerCaseWord.includes("%")
         || lowerCaseWord.includes("mg/") 
+        || lowerCaseWord.includes("mg/g") 
         || lowerCaseWord.includes("g/") 
         || lowerCaseWord.includes("micrograme/") 
-        || lowerCaseWord.includes("MU/") 
+        || lowerCaseWord.includes("mu/") 
         || lowerCaseWord.includes("mg/ml"));
   });
 
@@ -279,11 +282,14 @@ server.get("/getInteractionList", async (req, res) => {
     const response = await getInteractions(stringParam, listParam);
     const interactions = response.fullInteractionTypeGroup;
     let listInteractions = [];
+    if(interactions != undefined && interactions != null) {
     interactions.forEach(interaction => {
       listInteractions.push(getFilteredInteractions(interaction.fullInteractionType))
     }); 
-
     res.json({interaction: listInteractions});
+  } else {
+    res.json({interaction: null});
+  }
   } catch (err) {
     console.log(err);
     res.status(500).json({ message: "Internal Server Error" });
