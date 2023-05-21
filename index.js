@@ -12,7 +12,7 @@ const https = require("https");
 const util = require("./json/util.json");
 
 const server = express();
-const port = 3000;
+const port = process.env.PORT || 3000;
 
 // export const api = functions.https.onRequest(server);
 
