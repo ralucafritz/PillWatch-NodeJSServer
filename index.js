@@ -20,7 +20,7 @@ server.listen(port, () => {
   // when the server boots up => check if the data is outdated
   // if outdated => replaced
   // commented out for easier testing
-  // getNewDataIfOutdated();
+  getNewDataIfOutdated();
   console.log(`Example app listening on port ${port}`);
 });
 
