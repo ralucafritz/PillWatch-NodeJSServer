@@ -90,10 +90,12 @@ server.get("/getDataset", (req, res) => {
 });
 
 server.get("/getDatasetSha", (req, res) => {
-  console.log(Object.keys( JSON.parse(fs.readFileSync(dataJson, "utf8"))).length)
+  console.log(
+    Object.keys(JSON.parse(fs.readFileSync(dataJson, "utf8"))).length
+  );
   const sha = calculateHash(fs.readFileSync(dataJson));
   res.json({ sha });
-})
+});
 
 // localhost:3000/getLastUpdateDate
 server.get("/getLastUpdateDate", async (req, res) => {
@@ -109,7 +111,9 @@ server.get("/getLastUpdateDate", async (req, res) => {
 
 // api for testing purposes
 server.get("/getTest", async (req, res) => {
-  console.log(Object.keys( JSON.parse(fs.readFileSync(dataJson, "utf8"))).length)
+  console.log(
+    Object.keys(JSON.parse(fs.readFileSync(dataJson, "utf8"))).length
+  );
 });
 
 ////////////////////////////////// RXCUI FUNCTIONS
@@ -129,22 +133,22 @@ async function addRxCuiAndSortMeds(data) {
 
   // go through the entire dataset
   for (const obj of data) {
-      obj['Trade name'] = extractMedicationName(obj['Trade name'])
+    obj["Trade name"] = extractMedicationName(obj["Trade name"]);
 
-     // create the map key for the object made out of trade name, dosage form and concentration
-     const key = `${obj["Trade name"]},${obj["Concentration"]}`
+    // create the map key for the object made out of trade name, dosage form and concentration
+    const key = `${obj["Trade name"]},${obj["Concentration"]}`;
 
-     // check if the object is already in the map => skip object
-     if(map.has(key)) {
-       // log err msg and increment
-       logObjCheckStatus(-1, number);
-         number++;
-         continue
-     }
+    // check if the object is already in the map => skip object
+    if (map.has(key)) {
+      // log err msg and increment
+      logObjCheckStatus(-1, number);
+      number++;
+      continue;
+    }
 
     // extract the `ATC Code` column data from the JSON object
     const atcCode = obj["ATC Code"];
-    
+
     // check if the object has an `ATC Code` or if the `ATC Code` has already been established as
     // invalid code or a code that doesn't have a RxCui in the NIH database
     if (atcCode === undefined || atcCode in atcCodesWithoutRxCuiOrInvalid) {
@@ -158,7 +162,7 @@ async function addRxCuiAndSortMeds(data) {
       number++;
       continue;
     }
-    
+
     let rxCui;
 
     // check if the RxCui was already requested for this ATC Code
@@ -193,8 +197,8 @@ async function addRxCuiAndSortMeds(data) {
     logObjCheckStatus(0, number);
     number++;
 
-    // push to the map 
-    map.set(key, newObj)
+    // push to the map
+    map.set(key, newObj);
 
     // push the new created object into the array
     newData.push(newObj);
@@ -244,31 +248,32 @@ function extractMedicationName(name) {
   // filter words that contain digits / floating numbers
   const filteredWords = words.filter((word) => {
     const lowerCaseWord = word.toLowerCase();
-    return  !(/^[-+]?\d+(?:[,.]\d+)?$/.test(word)
-        || lowerCaseWord === "mg" 
-        || lowerCaseWord === "ml" 
-        || lowerCaseWord === "-" 
-        || lowerCaseWord.includes("ui") 
-        || lowerCaseWord.includes("%")
-        || lowerCaseWord.includes("mg/") 
-        || lowerCaseWord.includes("mg/g") 
-        || lowerCaseWord.includes("g/") 
-        || lowerCaseWord.includes("micrograme/") 
-        || lowerCaseWord.includes("mu/") 
-        || lowerCaseWord.includes("mg/ml"));
+    return !(
+      /^[-+]?\d+(?:[,.]\d+)?$/.test(word) ||
+      lowerCaseWord === "mg" ||
+      lowerCaseWord === "ml" ||
+      lowerCaseWord === "-" ||
+      lowerCaseWord.includes("ui") ||
+      lowerCaseWord.includes("%") ||
+      lowerCaseWord.includes("mg/") ||
+      lowerCaseWord.includes("mg/g") ||
+      lowerCaseWord.includes("g/") ||
+      lowerCaseWord.includes("micrograme/") ||
+      lowerCaseWord.includes("mu/") ||
+      lowerCaseWord.includes("mg/ml")
+    );
   });
 
-  const medicationName = filteredWords.map(word => toTitleCase(word)).join(" ");
-  return medicationName.trim() || name
+  const medicationName = filteredWords
+    .map((word) => toTitleCase(word))
+    .join(" ");
+  return medicationName.trim() || name;
 }
 
 function toTitleCase(str) {
-  return str.replace(
-    /\w\S*/g,
-    function(txt) {
-      return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();
-    }
-  );
+  return str.replace(/\w\S*/g, function (txt) {
+    return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();
+  });
 }
 
 ////////////////////////////////// API MEDS INTERACTION
@@ -282,14 +287,16 @@ server.get("/getInteractionList", async (req, res) => {
     const response = await getInteractions(stringParam, listParam);
     const interactions = response.fullInteractionTypeGroup;
     let listInteractions = [];
-    if(interactions != undefined && interactions != null) {
-    interactions.forEach(interaction => {
-      listInteractions.push(getFilteredInteractions(interaction.fullInteractionType))
-    }); 
-    res.json({interaction: listInteractions});
-  } else {
-    res.json({interaction: null});
-  }
+    if (interactions != undefined && interactions != null) {
+      interactions.forEach((interaction) => {
+        listInteractions.push(
+          getFilteredInteractions(interaction.fullInteractionType)
+        );
+      });
+      res.json({ interaction: listInteractions });
+    } else {
+      res.json({ interaction: null });
+    }
   } catch (err) {
     console.log(err);
     res.status(500).json({ message: "Internal Server Error" });
@@ -314,19 +321,23 @@ async function getInteractions(rxCui, listRxCuis) {
 }
 
 function getFilteredInteractions(interactions) {
-  const filteredInteractions = interactions.filter(interaction => {
-    return interaction.interactionPair.some(pair => {
-      return pair.severity !== 'N/A';
+  const filteredInteractions = interactions.filter((interaction) => {
+    return interaction.interactionPair.some((pair) => {
+      return pair.severity !== "N/A";
     });
   });
-  const filteredResults = []
-  filteredInteractions.map(interaction => {
-    const rxcui1 =  interaction.minConcept[0].rxcui;
+  const filteredResults = [];
+  filteredInteractions.map((interaction) => {
+    const rxcui1 = interaction.minConcept[0].rxcui;
     const rxcui2 = interaction.minConcept[1].rxcui;
     const severity = interaction.interactionPair[0].severity;
-    const newInteraction = {rxCui1: rxcui1, rxCui2: rxcui2, severity: severity}
+    const newInteraction = {
+      rxCui1: rxcui1,
+      rxCui2: rxcui2,
+      severity: severity,
+    };
     filteredResults.push(newInteraction);
-    });
+  });
   return filteredResults;
 }
 
@@ -464,20 +475,18 @@ function logObjCheckStatus(status, number) {
       console.log(`No.${number} retrieved successfully.`);
       break;
     case 1:
-       // error message
-    console.log(
-      `No.${number} could not be found in the NIH database or it doesn't have an ATC code.`
-    );
+      // error message
+      console.log(
+        `No.${number} could not be found in the NIH database or it doesn't have an ATC code.`
+      );
       break;
     case -1:
-       // error message
-    console.log(
-      `No.${number} already in the system.`
-    );
+      // error message
+      console.log(`No.${number} already in the system.`);
       break;
     default:
       console.log(`Unknown status for No.${number}`);
-  } 
+  }
 }
 
 // execution timer
@@ -504,9 +513,8 @@ function calculateHash(data) {
   return crypto.createHash("sha256").update(JSON.stringify(data)).digest("hex");
 }
 
-
 const interaction = {
-  rxCui1: "", 
+  rxCui1: "",
   rxCui2: "",
-  severity: ""
+  severity: "",
 };
