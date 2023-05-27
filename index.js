@@ -457,12 +457,12 @@ async function getNewDataIfOutdated() {
 ////////////////////////////////// RECURRENT ACTIONS
 
 // minute 00
-// hour 05
+// hour 02 UTC = 05 UTC+3
 // month day *
 // month *
 // week day 1 - monday
 // checks if needs update
-cron.schedule("00 05 * * 1", () => {
+cron.schedule("00 02 * * 1", () => {
   getNewDataIfOutdated();
 });
 
