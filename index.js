@@ -129,7 +129,10 @@ async function addRxCuiAndSortMeds(data) {
   const map = new Map();
 
   // init numbers for checking purposes
-  let number = 2;
+  let number = 1;
+
+  // init variable to count the number of medicine to get the final precent of medicine saved from the total number of medicine
+  let count = 0;
 
   // go through the entire dataset
   for (const obj of data) {
@@ -143,6 +146,7 @@ async function addRxCuiAndSortMeds(data) {
       // log err msg and increment
       logObjCheckStatus(-1, number);
       number++;
+      count++;
       continue;
     }
 
@@ -196,6 +200,7 @@ async function addRxCuiAndSortMeds(data) {
     // log sucess and increment
     logObjCheckStatus(0, number);
     number++;
+    count++;
 
     // push to the map
     map.set(key, newObj);
@@ -206,7 +211,10 @@ async function addRxCuiAndSortMeds(data) {
 
   // write the new data in a JSON file
   writeData(newData);
-
+  console.log(count);
+  const precent = ((count * 100) / data.length).toFixed(2);
+  console.log(`Medicine count found in the NIH database: ${count} out of ${data.length}.`)
+  console.log(`Percentage of medicine found in the NIH database: ${precent} %.`)
   return newData;
 }
 
