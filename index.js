@@ -8,7 +8,6 @@ const fs = require("fs");
 const crypto = require("crypto");
 const cron = require("node-cron");
 const HTMLParser = require("node-html-parser");
-const https = require("https");
 const util = require("./json/util.json");
 
 const server = express();
