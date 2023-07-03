@@ -19,7 +19,7 @@ server.listen(port, () => {
   // when the server boots up => check if the data is outdated
   // if outdated => replaced
   // commented out for easier testing
-  getNewDataIfOutdated();
+  // getNewDataIfOutdated();
   console.log(`Example app listening on port ${port}`);
 });
 
@@ -57,29 +57,9 @@ server.get("/getConvertedData", (req, res) => {
   res.send(convertToJson());
 });
 
-// localhost:3000/getFinalData
+// localhost:3000/getDatasetJson
 server.get("/getDatasetJson", async (req, res) => {
-  try {
-    // start timer
-    const start = Date.now();
-
-    // sorting the meds that can be found in the NIH database
-    // and retrieving the RxCui for the meds found
-    // adding it as a new collumn
-    // also writing the list as a new json file
-    const newData = await addRxCuiAndSortMeds(convertToJson());
-
-    // return the array as json
-    res.json(newData);
-
-    // end timer
-    const end = Date.now();
-
-    getExecutionTime(start, end);
-  } catch (error) {
-    console.error(error);
-    res.status(500).send("Internal Server Error");
-  }
+ getDatasetJSON()
 });
 
 // localhost:3000/getDataset
@@ -116,6 +96,30 @@ server.get("/getTest", async (req, res) => {
 });
 
 ////////////////////////////////// RXCUI FUNCTIONS
+
+async function getDatasetJSON() {
+  try {
+    // start timer
+    const start = Date.now();
+
+    // sorting the meds that can be found in the NIH database
+    // and retrieving the RxCui for the meds found
+    // adding it as a new collumn
+    // also writing the list as a new json file
+    const newData = await addRxCuiAndSortMeds(convertToJson());
+
+    // return the array as json
+    res.json(newData);
+
+    // end timer
+    const end = Date.now();
+
+    getExecutionTime(start, end);
+  } catch (error) {
+    console.error(error);
+    res.status(500).send("Internal Server Error");
+  }
+}
 
 async function addRxCuiAndSortMeds(data) {
   const dictAtcCode = {};
@@ -457,7 +461,7 @@ async function checkDate() {
 async function getNewDataIfOutdated() {
   if (await checkDate()) {
     await getExcelFile();
-    await addRxCuiAndSortMeds(convertToJson());
+    await getDatasetJSON();
   }
 }
 
